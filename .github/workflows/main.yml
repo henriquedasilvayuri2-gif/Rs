@@ -1,0 +1,58 @@
+name: Create Cloud PC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Resource Group
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az group create \
+              --name CloudPC-RG \
+              --location eastus
+
+      - name: Deploy Cloud PC
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: CloudPC-RG
+          template: ./main.bicep
+          parameters: >
+            adminPassword=${{ secrets.VM_PASSWORD }}
+            vmName=CloudPC
+            vmSize=Standard_D4s_v5
+
+      - name: Show Connection Information
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            echo "================================="
+            echo "CLOUD PC CRIADO"
+            echo "================================="
+
+            IP=$(az vm show \
+              -d \
+              -g CloudPC-RG \
+              -n CloudPC \
+              --query publicIps \
+              -o tsv)
+
+            echo "IP: $IP"
+            echo "Usuário: cloudadmin"
+            echo "Porta RDP: 3389"
+            echo "================================="
